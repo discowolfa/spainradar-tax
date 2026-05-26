@@ -6,6 +6,7 @@ __pycache__/
 .env.*
 !.env.example
 venv/
+.deploy_ssh/
 logs/*
 !logs/.gitkeep
 data/*.db
