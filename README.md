@@ -53,11 +53,14 @@ Copy `.env.example` to `.env` and fill in:
 
 - `BOT_TOKEN` - Telegram bot token from BotFather
 - `CHAT_ID` - Telegram channel or chat ID
+- `STATUS_CHAT_ID` - optional test/admin chat for technical status notifications
 - `OPENAI_API_KEY` - OpenAI API key
 - `OPENAI_MODEL` - model used for translation and analysis, defaults to `gpt-5-mini`
 - `DATABASE_PATH` - SQLite database path
 - `SCHEDULE_INTERVAL_MINUTES` - fetch interval
 - `LOG_PATH` - bot log path
+- `LOG_MAX_BYTES` - max size of one log file before rotation
+- `LOG_BACKUP_COUNT` - number of rotated log files to keep
 - `CHANNEL_TIMEZONE` - timezone used in Telegram post timestamps, defaults to `Europe/Madrid`
 - `MAX_ARTICLES_PER_CYCLE` - max number of articles published during one fetch cycle; `0` means unlimited
 - `PUBLISH_DELAY_SECONDS` - delay between Telegram messages, defaults to `0.5`

@@ -43,6 +43,11 @@ class Database:
             )
             self.connection.commit()
 
+    def count_articles(self) -> int:
+        with self._lock:
+            cursor = self.connection.execute("SELECT COUNT(*) FROM articles")
+            return int(cursor.fetchone()[0])
+
     def close(self) -> None:
         with self._lock:
             if self.connection:
