@@ -1,0 +1,15 @@
+[Unit]
+Description=SpainRadar Tax Telegram News Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/spainradar_tax
+ExecStart=/path/to/spainradar_tax/venv/bin/python /path/to/spainradar_tax/main.py
+Restart=on-failure
+RestartSec=10
+User=www-data
+EnvironmentFile=/path/to/spainradar_tax/.env
+
+[Install]
+WantedBy=multi-user.target

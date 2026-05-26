@@ -1,0 +1,118 @@
+import hashlib
+
+from apscheduler.schedulers.blocking import BlockingScheduler
+
+from config import BOT_TOKEN, CHAT_ID, DATABASE_PATH, SCHEDULE_INTERVAL_MINUTES
+from database import Database
+from logger import setup_logging
+from publisher import Publisher
+from analyzer import Analyzer
+from fetchers.rss_fetcher import RSSFetcher
+from fetchers.html_fetcher import HTMLFetcher
+from sources.sources import SOURCE_LIST
+
+
+def make_article_id(item: dict) -> str:
+    article_id = item.get("id") or item.get("link") or item.get("title")
+    if article_id:
+        return article_id
+
+    raw = f"{item.get('title', '')}|{item.get('summary', '')}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def main() -> None:
+    logger = setup_logging()
+    logger.info("Starting SpainRadar Tax Telegram bot")
+
+    db = Database(DATABASE_PATH)
+    db.setup()
+
+    publisher = Publisher(BOT_TOKEN, CHAT_ID, logger=logger)
+    analyzer = Analyzer(logger=logger)
+    rss_fetcher = RSSFetcher(logger=logger)
+    html_fetcher = HTMLFetcher(logger=logger)
+
+    def run_cycle() -> None:
+        logger.info("Running fetch and publish cycle")
+        seen_in_cycle = set()
+
+        try:
+            for source in SOURCE_LIST:
+                source_name = source.get("name", source.get("url", "unknown source"))
+                source_url = source.get("url", "")
+                source_type = source.get("type", "rss")
+
+                try:
+                    if source_type == "rss":
+                        items = rss_fetcher.fetch(source_url)
+                    else:
+                        items = html_fetcher.fetch(source_url)
+
+                    logger.info(
+                        "Source fetch completed: %s (%s entries)",
+                        source_name,
+                        len(items),
+                    )
+                except Exception:
+                    logger.exception("Source fetch failed: %s", source_name)
+                    continue
+
+                for item in items:
+                    try:
+                        article_id = make_article_id(item)
+
+                        if article_id in seen_in_cycle or db.has_article(article_id):
+                            continue
+
+                        seen_in_cycle.add(article_id)
+
+                        title = item.get("title", "").strip()
+                        link = item.get("link", "").strip()
+                        summary_source = item.get("summary") or title
+                        summary = analyzer.analyze(
+                            f"Title: {title}\nLink: {link}\nSummary: {summary_source}"
+                        )
+                        message = f"{title}\n{link}\n\n{summary}".strip()
+
+                        if publisher.publish(message):
+                            db.save_article(article_id, title=title)
+                            logger.info("Published article: %s", title or article_id)
+                        else:
+                            logger.error(
+                                "Publish failed, article was not marked as sent: %s",
+                                title or article_id,
+                            )
+                    except Exception:
+                        logger.exception(
+                            "Article processing failed for source: %s",
+                            source_name,
+                        )
+                        continue
+        except Exception:
+            logger.exception("Fetch and publish cycle failed")
+        finally:
+            logger.info("Fetch and publish cycle finished")
+
+    scheduler = BlockingScheduler()
+    scheduler.add_job(
+        run_cycle,
+        "interval",
+        minutes=SCHEDULE_INTERVAL_MINUTES,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=60,
+    )
+
+    try:
+        run_cycle()
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Stopping SpainRadar Tax bot")
+    finally:
+        publisher.close()
+        db.close()
+
+
+if __name__ == "__main__":
+    main()
