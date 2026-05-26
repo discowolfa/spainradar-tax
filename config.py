@@ -7,6 +7,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 CHAT_ID = os.getenv("CHAT_ID", "")
 STATUS_CHAT_ID = os.getenv("STATUS_CHAT_ID", "")
+ENABLE_STATUS_COMMANDS = os.getenv("ENABLE_STATUS_COMMANDS", "true").lower() == "true"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 DATABASE_PATH = os.getenv("DATABASE_PATH", "data/spainradar_tax.db")

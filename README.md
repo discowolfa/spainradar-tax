@@ -54,6 +54,7 @@ Copy `.env.example` to `.env` and fill in:
 - `BOT_TOKEN` - Telegram bot token from BotFather
 - `CHAT_ID` - Telegram channel or chat ID
 - `STATUS_CHAT_ID` - optional test/admin chat for technical status notifications
+- `ENABLE_STATUS_COMMANDS` - enable `/status` and `/health` commands in `STATUS_CHAT_ID`
 - `OPENAI_API_KEY` - OpenAI API key
 - `OPENAI_MODEL` - model used for translation and analysis, defaults to `gpt-5-mini`
 - `DATABASE_PATH` - SQLite database path
@@ -142,6 +143,7 @@ Production `.env` example:
 BOT_TOKEN=your_telegram_bot_token
 CHAT_ID=@spainradar_tax
 STATUS_CHAT_ID=your_test_or_admin_chat_id
+ENABLE_STATUS_COMMANDS=true
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-5-mini
 DATABASE_PATH=data/spainradar_tax.db
@@ -202,6 +204,40 @@ journalctl -u spainradar-tax -f
 You do not need to watch the server all the time.
 
 The bot sends operational status messages to `STATUS_CHAT_ID`, which should be a test/admin channel. Regular news posts go only to `CHAT_ID`.
+
+The bot does not send a "cycle finished" message for empty healthy cycles. This keeps the test/admin channel quiet.
+
+Automatic status messages are sent when:
+
+- the bot starts;
+- a cycle publishes at least one news post;
+- a cycle has errors;
+- a source or processing error occurs.
+
+Manual status check in the test/admin channel:
+
+```text
+/status
+```
+
+or:
+
+```text
+/health
+```
+
+The bot replies with the latest known status:
+
+```text
+SpainRadar Tax: статус
+
+Последний цикл: 26.05.2026, 14:40
+Получено из RSS: 65
+Новых найдено: 0
+Опубликовано: 0
+Ошибок: 0
+База: 65 записей, 32 KB
+```
 
 Normal status message:
 

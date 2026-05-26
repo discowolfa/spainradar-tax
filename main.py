@@ -12,6 +12,7 @@ from config import (
     CHANNEL_TIMEZONE,
     CHAT_ID,
     DATABASE_PATH,
+    ENABLE_STATUS_COMMANDS,
     MAX_ARTICLES_PER_CYCLE,
     OPENAI_ANALYSIS_WORKERS,
     PUBLISH_DELAY_SECONDS,
@@ -25,6 +26,7 @@ from analyzer import Analyzer
 from fetchers.rss_fetcher import RSSFetcher
 from fetchers.html_fetcher import HTMLFetcher
 from sources.sources import SOURCE_LIST
+from status_bot import StatusCommandBot, StatusState, format_status_text
 from utils.date_utils import now_channel_time
 
 
@@ -120,6 +122,17 @@ def main() -> None:
     status_publisher = (
         Publisher(BOT_TOKEN, STATUS_CHAT_ID, logger=logger) if STATUS_CHAT_ID else None
     )
+    status_state = StatusState()
+    status_bot = (
+        StatusCommandBot(
+            BOT_TOKEN,
+            STATUS_CHAT_ID,
+            lambda: format_status_text(status_state.snapshot()),
+            logger=logger,
+        )
+        if STATUS_CHAT_ID and ENABLE_STATUS_COMMANDS
+        else None
+    )
     analyzer = Analyzer(logger=logger)
     rss_fetcher = RSSFetcher(logger=logger)
     html_fetcher = HTMLFetcher(logger=logger)
@@ -133,11 +146,15 @@ def main() -> None:
         except Exception:
             logger.exception("Status notification failed")
 
+    if status_bot:
+        status_bot.start()
+
     notify_status(
         "SpainRadar Tax: бот запущен",
         [
             f"Основной канал: {CHAT_ID}",
             f"Интервал: {SCHEDULE_INTERVAL_MINUTES} мин.",
+            "Команды: /status",
             f"База: {db.count_articles()} записей",
         ],
     )
@@ -276,16 +293,27 @@ def main() -> None:
             )
         finally:
             db_size = Path(DATABASE_PATH).stat().st_size if Path(DATABASE_PATH).exists() else 0
-            notify_status(
-                "SpainRadar Tax: цикл завершен",
-                [
-                    f"Получено из RSS: {fetched_count}",
-                    f"Новых найдено: {new_count}",
-                    f"Опубликовано: {published_count}",
-                    f"Ошибок: {error_count}",
-                    f"База: {db.count_articles()} записей, {db_size // 1024} KB",
-                ],
+            db_count = db.count_articles()
+            status_state.update(
+                last_cycle_at=now_channel_time(CHANNEL_TIMEZONE),
+                fetched=fetched_count,
+                new=new_count,
+                published=published_count,
+                errors=error_count,
+                db_count=db_count,
+                db_size_kb=db_size // 1024,
             )
+            if published_count > 0 or error_count > 0:
+                notify_status(
+                    "SpainRadar Tax: цикл завершен",
+                    [
+                        f"Получено из RSS: {fetched_count}",
+                        f"Новых найдено: {new_count}",
+                        f"Опубликовано: {published_count}",
+                        f"Ошибок: {error_count}",
+                        f"База: {db_count} записей, {db_size // 1024} KB",
+                    ],
+                )
             logger.info("Fetch and publish cycle finished")
 
     scheduler = BlockingScheduler()
@@ -306,6 +334,8 @@ def main() -> None:
         notify_status("SpainRadar Tax: бот остановлен", ["Получен сигнал остановки."])
     finally:
         publisher.close()
+        if status_bot:
+            status_bot.stop()
         if status_publisher:
             status_publisher.close()
         db.close()
