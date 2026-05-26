@@ -3,6 +3,7 @@ import threading
 from typing import Any
 
 from telegram import Bot
+from telegram.error import RetryAfter
 
 
 class Publisher:
@@ -19,11 +20,24 @@ class Publisher:
             await self.bot.initialize()
             self._initialized = True
 
-        await self.bot.send_message(
-            chat_id=self.chat_id,
-            text=message[:4096],
-            parse_mode="HTML",
-        )
+        try:
+            await self.bot.send_message(
+                chat_id=self.chat_id,
+                text=message[:4096],
+                parse_mode="HTML",
+            )
+        except RetryAfter as exc:
+            if self.logger:
+                self.logger.warning(
+                    "Telegram flood control, retrying after %s seconds",
+                    exc.retry_after,
+                )
+            await asyncio.sleep(exc.retry_after + 1)
+            await self.bot.send_message(
+                chat_id=self.chat_id,
+                text=message[:4096],
+                parse_mode="HTML",
+            )
 
     async def _close(self) -> None:
         if self._initialized:

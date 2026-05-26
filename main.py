@@ -1,4 +1,5 @@
 import hashlib
+import time
 from html import escape
 from urllib.parse import urlparse
 
@@ -10,6 +11,7 @@ from config import (
     CHAT_ID,
     DATABASE_PATH,
     MAX_ARTICLES_PER_CYCLE,
+    PUBLISH_DELAY_SECONDS,
     SCHEDULE_INTERVAL_MINUTES,
 )
 from database import Database
@@ -52,6 +54,10 @@ def priority_label(priority: str) -> str:
         "low": "низкий",
     }
     return labels.get(priority, labels["medium"])
+
+
+def publish_limit_reached(published_count: int) -> bool:
+    return MAX_ARTICLES_PER_CYCLE > 0 and published_count >= MAX_ARTICLES_PER_CYCLE
 
 
 def format_message(article: dict, link: str) -> str:
@@ -101,7 +107,7 @@ def main() -> None:
 
         try:
             for source in SOURCE_LIST:
-                if published_count >= MAX_ARTICLES_PER_CYCLE:
+                if publish_limit_reached(published_count):
                     logger.info(
                         "Reached publish limit for cycle: %s",
                         MAX_ARTICLES_PER_CYCLE,
@@ -150,7 +156,9 @@ def main() -> None:
                             db.save_article(article_id, title=title)
                             published_count += 1
                             logger.info("Published article: %s", title or article_id)
-                            if published_count >= MAX_ARTICLES_PER_CYCLE:
+                            if PUBLISH_DELAY_SECONDS > 0:
+                                time.sleep(PUBLISH_DELAY_SECONDS)
+                            if publish_limit_reached(published_count):
                                 logger.info(
                                     "Reached publish limit for cycle: %s",
                                     MAX_ARTICLES_PER_CYCLE,
