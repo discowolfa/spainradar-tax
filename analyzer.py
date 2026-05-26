@@ -61,7 +61,16 @@ class Analyzer:
             "You are an editor for a Russian-language Telegram channel about taxes, "
             "law, finance, and official news in Spain. Translate the news item into "
             "clear Russian and prepare a concise channel post. Return only JSON with "
-            'keys "headline", "summary", "analysis", "audience", and "action". '
+            'keys "priority", "headline", "summary", "analysis", "audience", and "action". '
+            'Priority must be one of "high", "medium", or "low". Use "high" for '
+            "mandatory obligations, deadlines, fines, tax returns, BOE/legal changes, "
+            "AEAT/Hacienda or Seguridad Social changes affecting residents, autónomos, "
+            'companies, payments, inspections, or official campaigns. Use "medium" '
+            "for useful clarifications, instructions, procedures, or practical updates "
+            'without clear urgency. Use "low" for statistics, reports, announcements, '
+            "press releases, and general background information. If deadlines, fines, "
+            'mandatory forms, BOE, or changes in tax obligations are present, priority '
+            'must be "high". '
             "Headline must be one short Russian sentence without emoji. Summary, "
             "analysis, audience, and action must each be 1-2 short sentences. Keep it "
             "practical for residents, autónomos, companies, or investors in Spain. "
@@ -82,6 +91,7 @@ class Analyzer:
             return self._fallback_result(clean_title, clean_summary)
 
         return {
+            "priority": self._normalize_priority(str(data.get("priority", ""))),
             "headline": sanitize_text(str(data.get("headline", ""))) or clean_title,
             "summary": sanitize_text(str(data.get("summary", ""))) or clean_summary,
             "analysis": sanitize_text(str(data.get("analysis", ""))),
@@ -89,8 +99,15 @@ class Analyzer:
             "action": sanitize_text(str(data.get("action", ""))),
         }
 
+    def _normalize_priority(self, priority: str) -> str:
+        priority = sanitize_text(priority).lower()
+        if priority in {"high", "medium", "low"}:
+            return priority
+        return "medium"
+
     def _fallback_result(self, title: str, summary: str) -> dict:
         return {
+            "priority": "medium",
             "headline": title,
             "summary": summary or title,
             "analysis": "Проверьте официальный источник перед принятием решений.",

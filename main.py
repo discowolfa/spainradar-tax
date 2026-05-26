@@ -36,12 +36,22 @@ def source_domain(link: str) -> str:
     return domain.removeprefix("www.")
 
 
+def priority_marker(priority: str) -> str:
+    markers = {
+        "high": "🔴",
+        "medium": "🟡",
+        "low": "🔵",
+    }
+    return markers.get(priority, markers["medium"])
+
+
 def format_message(article: dict, link: str) -> str:
     domain = source_domain(link)
     source = link
     if domain:
         source = f"{link}\n\n{domain}"
 
+    marker = priority_marker(article.get("priority", "medium"))
     headline = escape(article.get("headline", "").strip())
     summary = escape(article.get("summary", "").strip())
     analysis = escape(article.get("analysis", "").strip())
@@ -51,7 +61,7 @@ def format_message(article: dict, link: str) -> str:
 
     return (
         f"{now_channel_time(CHANNEL_TIMEZONE)}\n\n"
-        f"<b>{headline}</b>\n\n"
+        f"{marker} <b>{headline}</b>\n\n"
         f"📌 Кратко:\n{summary}\n\n"
         f"🤖 Анализ:\n{analysis}\n\n"
         f"👥 Кого касается:\n{audience}\n\n"
