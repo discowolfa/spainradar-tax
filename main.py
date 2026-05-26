@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
 import time
 from html import escape
@@ -11,6 +12,7 @@ from config import (
     CHAT_ID,
     DATABASE_PATH,
     MAX_ARTICLES_PER_CYCLE,
+    OPENAI_ANALYSIS_WORKERS,
     PUBLISH_DELAY_SECONDS,
     SCHEDULE_INTERVAL_MINUTES,
 )
@@ -88,6 +90,18 @@ def format_message(article: dict, link: str) -> str:
     ).strip()
 
 
+def build_message(analyzer: Analyzer, item: dict) -> str:
+    title = item.get("title", "").strip()
+    link = item.get("link", "").strip()
+    summary_source = item.get("summary") or title
+    article = analyzer.analyze_item(
+        title=title,
+        link=link,
+        summary=summary_source,
+    )
+    return format_message(article, link)
+
+
 def main() -> None:
     logger = setup_logging()
     logger.info("Starting SpainRadar Tax Telegram bot")
@@ -133,6 +147,8 @@ def main() -> None:
                     logger.exception("Source fetch failed: %s", source_name)
                     continue
 
+                pending_items = []
+
                 for item in items:
                     try:
                         article_id = make_article_id(item)
@@ -141,40 +157,76 @@ def main() -> None:
                             continue
 
                         seen_in_cycle.add(article_id)
-
                         title = item.get("title", "").strip()
-                        link = item.get("link", "").strip()
-                        summary_source = item.get("summary") or title
-                        article = analyzer.analyze_item(
-                            title=title,
-                            link=link,
-                            summary=summary_source,
-                        )
-                        message = format_message(article, link)
+                        pending_items.append((article_id, title, item))
 
-                        if publisher.publish(message):
-                            db.save_article(article_id, title=title)
-                            published_count += 1
-                            logger.info("Published article: %s", title or article_id)
-                            if PUBLISH_DELAY_SECONDS > 0:
-                                time.sleep(PUBLISH_DELAY_SECONDS)
-                            if publish_limit_reached(published_count):
-                                logger.info(
-                                    "Reached publish limit for cycle: %s",
-                                    MAX_ARTICLES_PER_CYCLE,
-                                )
-                                break
-                        else:
-                            logger.error(
-                                "Publish failed, article was not marked as sent: %s",
-                                title or article_id,
-                            )
+                        if (
+                            MAX_ARTICLES_PER_CYCLE > 0
+                            and published_count + len(pending_items)
+                            >= MAX_ARTICLES_PER_CYCLE
+                        ):
+                            break
                     except Exception:
                         logger.exception(
-                            "Article processing failed for source: %s",
+                            "Article deduplication failed for source: %s",
                             source_name,
                         )
                         continue
+
+                if not pending_items:
+                    continue
+
+                logger.info(
+                    "Analyzing %s new articles from source: %s",
+                    len(pending_items),
+                    source_name,
+                )
+
+                with ThreadPoolExecutor(
+                    max_workers=max(1, OPENAI_ANALYSIS_WORKERS)
+                ) as executor:
+                    futures = {
+                        executor.submit(build_message, analyzer, item): (
+                            article_id,
+                            title,
+                        )
+                        for article_id, title, item in pending_items
+                    }
+
+                    for future in as_completed(futures):
+                        article_id, title = futures[future]
+
+                        try:
+                            message = future.result()
+
+                            if publisher.publish(message):
+                                db.save_article(article_id, title=title)
+                                published_count += 1
+                                logger.info(
+                                    "Published article: %s",
+                                    title or article_id,
+                                )
+                                if PUBLISH_DELAY_SECONDS > 0:
+                                    time.sleep(PUBLISH_DELAY_SECONDS)
+                                if publish_limit_reached(published_count):
+                                    logger.info(
+                                        "Reached publish limit for cycle: %s",
+                                        MAX_ARTICLES_PER_CYCLE,
+                                    )
+                                    break
+                            else:
+                                logger.error(
+                                    "Publish failed, article was not marked as sent: %s",
+                                    title or article_id,
+                                )
+                        except Exception:
+                            logger.exception(
+                                "Article processing failed for source: %s",
+                                source_name,
+                            )
+
+                if publish_limit_reached(published_count):
+                    break
         except Exception:
             logger.exception("Fetch and publish cycle failed")
         finally:

@@ -60,7 +60,8 @@ Copy `.env.example` to `.env` and fill in:
 - `LOG_PATH` - bot log path
 - `CHANNEL_TIMEZONE` - timezone used in Telegram post timestamps, defaults to `Europe/Madrid`
 - `MAX_ARTICLES_PER_CYCLE` - max number of articles published during one fetch cycle; `0` means unlimited
-- `PUBLISH_DELAY_SECONDS` - delay between Telegram messages, defaults to `2`
+- `PUBLISH_DELAY_SECONDS` - delay between Telegram messages, defaults to `0.5`
+- `OPENAI_ANALYSIS_WORKERS` - number of parallel OpenAI analysis workers, defaults to `5`
 
 If `OPENAI_API_KEY` is empty, the bot keeps running and publishes sanitized source text without AI translation.
 
