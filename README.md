@@ -86,24 +86,141 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Server run with systemd
+## Production Deploy
 
-1. Clone the repository on the server.
-2. Create `venv` and install dependencies.
-3. Create `.env` from `.env.example`.
-4. Copy `systemd/spainradar-tax.service.example` to `/etc/systemd/system/spainradar-tax.service`.
-5. Update paths and the `User` value in the service file.
-6. Enable and start:
+Recommended production path:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable spainradar-tax
-sudo systemctl start spainradar-tax
-sudo systemctl status spainradar-tax
+/opt/spainradar-tax
+```
+
+Connect to the server:
+
+```bash
+ssh root@49.12.229.205
+```
+
+Install system packages:
+
+```bash
+apt update
+apt install -y git python3 python3-venv python3-pip sqlite3
+```
+
+Clone the project:
+
+```bash
+cd /opt
+git clone https://github.com/discowolfa/spainradar-tax.git
+cd /opt/spainradar-tax
+```
+
+If the project already exists:
+
+```bash
+cd /opt/spainradar-tax
+git pull origin main
+```
+
+Create the virtual environment:
+
+```bash
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+```
+
+Create server config:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Production `.env` example:
+
+```env
+BOT_TOKEN=your_telegram_bot_token
+CHAT_ID=@spainradar_tax
+STATUS_CHAT_ID=your_test_or_admin_chat_id
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-5-mini
+DATABASE_PATH=data/spainradar_tax.db
+SCHEDULE_INTERVAL_MINUTES=10
+LOG_PATH=logs/spainradar_tax.log
+LOG_MAX_BYTES=5242880
+LOG_BACKUP_COUNT=5
+CHANNEL_TIMEZONE=Europe/Madrid
+MAX_ARTICLES_PER_CYCLE=0
+PUBLISH_DELAY_SECONDS=0.5
+OPENAI_ANALYSIS_WORKERS=5
+```
+
+Manual smoke test:
+
+```bash
+./venv/bin/python -m compileall -q .
+timeout 60 ./venv/bin/python main.py
+```
+
+The bot should send technical status messages to `STATUS_CHAT_ID`. News posts go only to `CHAT_ID`.
+
+## systemd
+
+Create the service:
+
+```bash
+cp systemd/spainradar-tax.service.example /etc/systemd/system/spainradar-tax.service
+nano /etc/systemd/system/spainradar-tax.service
+```
+
+Use these production values:
+
+```ini
+WorkingDirectory=/opt/spainradar-tax
+ExecStart=/opt/spainradar-tax/venv/bin/python /opt/spainradar-tax/main.py
+User=root
+EnvironmentFile=/opt/spainradar-tax/.env
+```
+
+Enable and start:
+
+```bash
+systemctl daemon-reload
+systemctl enable spainradar-tax
+systemctl start spainradar-tax
+systemctl status spainradar-tax
 ```
 
 Logs:
 
 ```bash
 journalctl -u spainradar-tax -f
+```
+
+Restart after code updates:
+
+```bash
+cd /opt/spainradar-tax
+git pull origin main
+./venv/bin/pip install -r requirements.txt
+systemctl restart spainradar-tax
+systemctl status spainradar-tax
+```
+
+Stop:
+
+```bash
+systemctl stop spainradar-tax
+```
+
+Local bot logs are rotated automatically:
+
+```bash
+ls -lh /opt/spainradar-tax/logs
+```
+
+SQLite database:
+
+```bash
+sqlite3 /opt/spainradar-tax/data/spainradar_tax.db "select count(*) from articles;"
 ```
