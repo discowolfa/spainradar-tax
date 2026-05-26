@@ -39,9 +39,11 @@ class Analyzer:
         prompt = (
             "You are an editor for a Russian-language Telegram channel about taxes, "
             "law, finance, and official news in Spain. Translate the news item into "
-            "clear Russian and add a short practical analysis. Return only JSON with "
-            'keys "translation", "analysis", and "importance". '
-            "Keep it factual; do not invent details.\n\n"
+            "clear Russian and add a short practical analysis for residents, autónomos, "
+            "companies, or investors in Spain. Return only JSON with keys "
+            '"translation", "analysis", and "importance". Keep the translation to 1-2 '
+            "sentences, the analysis to 1-2 sentences, and importance to one short "
+            "sentence. Keep it factual; do not invent details.\n\n"
             f"News item:\n{clean_text}"
         )
 
