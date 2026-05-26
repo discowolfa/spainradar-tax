@@ -5,11 +5,6 @@ SOURCE_LIST = [
         "type": "rss",
     },
     {
-        "name": "BOE Diario",
-        "url": "https://www.boe.es/rss/boe.php",
-        "type": "rss",
-    },
-    {
         "name": "BOE Seguridad Social",
         "url": "https://www.boe.es/rss/canal_leg.php?c=125&l=l",
         "type": "rss",
