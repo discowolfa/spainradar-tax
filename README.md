@@ -197,6 +197,57 @@ Logs:
 journalctl -u spainradar-tax -f
 ```
 
+## Monitoring
+
+You do not need to watch the server all the time.
+
+The bot sends operational status messages to `STATUS_CHAT_ID`, which should be a test/admin channel. Regular news posts go only to `CHAT_ID`.
+
+Normal status message:
+
+```text
+SpainRadar Tax: цикл завершен
+
+Получено из RSS: 65
+Новых найдено: 0
+Опубликовано: 0
+Ошибок: 0
+База: 65 записей, 32 KB
+```
+
+If `Ошибок: 0`, the bot is healthy.
+
+Check the server manually only when:
+
+- status messages stop arriving in the test/admin channel;
+- `Ошибок` is greater than `0`;
+- news stops appearing in the main channel;
+- you changed tokens, `.env`, code, or dependencies.
+
+Useful manual checks:
+
+```bash
+systemctl status spainradar-tax --no-pager
+```
+
+This shows whether the service is alive. Healthy state:
+
+```text
+Active: active (running)
+```
+
+```bash
+journalctl -u spainradar-tax -f
+```
+
+This shows the live bot log. Use it only for debugging.
+
+```bash
+sqlite3 /opt/spainradar-tax/data/spainradar_tax.db "select count(*) from articles;"
+```
+
+This shows how many articles are already marked as published.
+
 Restart after code updates:
 
 ```bash
