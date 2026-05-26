@@ -1,4 +1,5 @@
 import hashlib
+from html import escape
 from urllib.parse import urlparse
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -41,13 +42,20 @@ def format_message(article: dict, link: str) -> str:
     if domain:
         source = f"{link}\n\n{domain}"
 
+    headline = escape(article.get("headline", "").strip())
+    summary = escape(article.get("summary", "").strip())
+    analysis = escape(article.get("analysis", "").strip())
+    audience = escape(article.get("audience", "").strip())
+    action = escape(article.get("action", "").strip())
+    source = escape(source)
+
     return (
         f"{now_channel_time(CHANNEL_TIMEZONE)}\n\n"
-        f"{article.get('headline', '').strip()}\n\n"
-        f"📌 Кратко:\n{article.get('summary', '').strip()}\n\n"
-        f"🤖 Анализ:\n{article.get('analysis', '').strip()}\n\n"
-        f"👥 Кого касается:\n{article.get('audience', '').strip()}\n\n"
-        f"✅ Что делать:\n{article.get('action', '').strip()}\n\n"
+        f"<b>{headline}</b>\n\n"
+        f"📌 Кратко:\n{summary}\n\n"
+        f"🤖 Анализ:\n{analysis}\n\n"
+        f"👥 Кого касается:\n{audience}\n\n"
+        f"✅ Что делать:\n{action}\n\n"
         f"🔗 Источник:\n{source}"
     ).strip()
 

@@ -22,6 +22,7 @@ class Publisher:
         await self.bot.send_message(
             chat_id=self.chat_id,
             text=message[:4096],
+            parse_mode="HTML",
         )
 
     async def _close(self) -> None:
