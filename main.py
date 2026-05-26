@@ -45,13 +45,24 @@ def priority_marker(priority: str) -> str:
     return markers.get(priority, markers["medium"])
 
 
+def priority_label(priority: str) -> str:
+    labels = {
+        "high": "высокий",
+        "medium": "средний",
+        "low": "низкий",
+    }
+    return labels.get(priority, labels["medium"])
+
+
 def format_message(article: dict, link: str) -> str:
     domain = source_domain(link)
     source = link
     if domain:
         source = f"{link}\n\n{domain}"
 
-    marker = priority_marker(article.get("priority", "medium"))
+    priority = article.get("priority", "medium")
+    marker = priority_marker(priority)
+    label = priority_label(priority)
     headline = escape(article.get("headline", "").strip())
     summary = escape(article.get("summary", "").strip())
     analysis = escape(article.get("analysis", "").strip())
@@ -61,7 +72,8 @@ def format_message(article: dict, link: str) -> str:
 
     return (
         f"{now_channel_time(CHANNEL_TIMEZONE)}\n\n"
-        f"{marker} <b>{headline}</b>\n\n"
+        f"<b>{headline}</b>\n\n"
+        f"Приоритет: {label} {marker}\n\n"
         f"📌 Кратко:\n{summary}\n\n"
         f"🤖 Анализ:\n{analysis}\n\n"
         f"👥 Кого касается:\n{audience}\n\n"
