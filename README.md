@@ -58,6 +58,7 @@ Copy `.env.example` to `.env` and fill in:
 - `DATABASE_PATH` - SQLite database path
 - `SCHEDULE_INTERVAL_MINUTES` - fetch interval
 - `LOG_PATH` - bot log path
+- `CHANNEL_TIMEZONE` - timezone used in Telegram post timestamps, defaults to `Europe/Madrid`
 
 If `OPENAI_API_KEY` is empty, the bot keeps running and publishes sanitized source text without AI translation.
 

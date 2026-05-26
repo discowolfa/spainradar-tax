@@ -1,8 +1,15 @@
 import hashlib
+from urllib.parse import urlparse
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from config import BOT_TOKEN, CHAT_ID, DATABASE_PATH, SCHEDULE_INTERVAL_MINUTES
+from config import (
+    BOT_TOKEN,
+    CHANNEL_TIMEZONE,
+    CHAT_ID,
+    DATABASE_PATH,
+    SCHEDULE_INTERVAL_MINUTES,
+)
 from database import Database
 from logger import setup_logging
 from publisher import Publisher
@@ -10,6 +17,7 @@ from analyzer import Analyzer
 from fetchers.rss_fetcher import RSSFetcher
 from fetchers.html_fetcher import HTMLFetcher
 from sources.sources import SOURCE_LIST
+from utils.date_utils import now_channel_time
 
 
 def make_article_id(item: dict) -> str:
@@ -19,6 +27,28 @@ def make_article_id(item: dict) -> str:
 
     raw = f"{item.get('title', '')}|{item.get('summary', '')}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def source_domain(link: str) -> str:
+    domain = urlparse(link).netloc
+    return domain.removeprefix("www.")
+
+
+def format_message(article: dict, link: str) -> str:
+    domain = source_domain(link)
+    source = link
+    if domain:
+        source = f"{link}\n\n{domain}"
+
+    return (
+        f"{now_channel_time(CHANNEL_TIMEZONE)}\n\n"
+        f"{article.get('headline', '').strip()}\n\n"
+        f"📌 Кратко:\n{article.get('summary', '').strip()}\n\n"
+        f"🤖 Анализ:\n{article.get('analysis', '').strip()}\n\n"
+        f"👥 Кого касается:\n{article.get('audience', '').strip()}\n\n"
+        f"✅ Что делать:\n{article.get('action', '').strip()}\n\n"
+        f"🔗 Источник:\n{source}"
+    ).strip()
 
 
 def main() -> None:
@@ -70,10 +100,12 @@ def main() -> None:
                         title = item.get("title", "").strip()
                         link = item.get("link", "").strip()
                         summary_source = item.get("summary") or title
-                        summary = analyzer.analyze(
-                            f"Title: {title}\nLink: {link}\nSummary: {summary_source}"
+                        article = analyzer.analyze_item(
+                            title=title,
+                            link=link,
+                            summary=summary_source,
                         )
-                        message = f"{title}\n{link}\n\n{summary}".strip()
+                        message = format_message(article, link)
 
                         if publisher.publish(message):
                             db.save_article(article_id, title=title)

@@ -24,26 +24,48 @@ class Analyzer:
             return json.loads(content[start : end + 1])
 
     def analyze(self, text: str) -> str:
+        data = self.analyze_item("", "", text)
+
+        parts = []
+        if data.get("summary"):
+            parts.append(f"Кратко: {data['summary']}")
+        if data.get("analysis"):
+            parts.append(f"Анализ: {data['analysis']}")
+        if data.get("importance"):
+            parts.append(f"Почему важно: {data['importance']}")
+
+        return "\n\n".join(parts) or sanitize_text(text)
+
+    def analyze_item(self, title: str, link: str, summary: str) -> dict:
         if self.logger:
             self.logger.debug("Analyzing text from source")
 
-        clean_text = sanitize_text(text)
+        clean_title = sanitize_text(title)
+        clean_link = sanitize_text(link)
+        clean_summary = sanitize_text(summary)
+        clean_text = (
+            f"Title: {clean_title}\n"
+            f"Link: {clean_link}\n"
+            f"Summary: {clean_summary}"
+        ).strip()
+
         if not clean_text:
-            return ""
+            return self._fallback_result(clean_title, clean_summary)
 
         if not self.client:
             if self.logger:
                 self.logger.warning("OPENAI_API_KEY is not set; using raw sanitized text")
-            return clean_text
+            return self._fallback_result(clean_title, clean_summary)
 
         prompt = (
             "You are an editor for a Russian-language Telegram channel about taxes, "
             "law, finance, and official news in Spain. Translate the news item into "
-            "clear Russian and add a short practical analysis for residents, autónomos, "
-            "companies, or investors in Spain. Return only JSON with keys "
-            '"translation", "analysis", and "importance". Keep the translation to 1-2 '
-            "sentences, the analysis to 1-2 sentences, and importance to one short "
-            "sentence. Keep it factual; do not invent details.\n\n"
+            "clear Russian and prepare a concise channel post. Return only JSON with "
+            'keys "headline", "summary", "analysis", "audience", and "action". '
+            "Headline must be one short Russian sentence without emoji. Summary, "
+            "analysis, audience, and action must each be 1-2 short sentences. Keep it "
+            "practical for residents, autónomos, companies, or investors in Spain. "
+            "Keep it factual; do not invent details.\n\n"
             f"News item:\n{clean_text}"
         )
 
@@ -57,18 +79,21 @@ class Analyzer:
         except Exception:
             if self.logger:
                 self.logger.exception("OpenAI analysis failed; using raw sanitized text")
-            return clean_text
+            return self._fallback_result(clean_title, clean_summary)
 
-        translation = sanitize_text(str(data.get("translation", "")))
-        analysis = sanitize_text(str(data.get("analysis", "")))
-        importance = sanitize_text(str(data.get("importance", "")))
+        return {
+            "headline": sanitize_text(str(data.get("headline", ""))) or clean_title,
+            "summary": sanitize_text(str(data.get("summary", ""))) or clean_summary,
+            "analysis": sanitize_text(str(data.get("analysis", ""))),
+            "audience": sanitize_text(str(data.get("audience", ""))),
+            "action": sanitize_text(str(data.get("action", ""))),
+        }
 
-        parts = []
-        if translation:
-            parts.append(f"Перевод: {translation}")
-        if analysis:
-            parts.append(f"Анализ: {analysis}")
-        if importance:
-            parts.append(f"Почему важно: {importance}")
-
-        return "\n\n".join(parts) or clean_text
+    def _fallback_result(self, title: str, summary: str) -> dict:
+        return {
+            "headline": title,
+            "summary": summary or title,
+            "analysis": "Проверьте официальный источник перед принятием решений.",
+            "audience": "Резидентов Испании, autónomos, компании и инвесторов.",
+            "action": "Сохраните ссылку и уточните детали у профильного специалиста при необходимости.",
+        }
