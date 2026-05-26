@@ -8,6 +8,7 @@ from config import (
     CHANNEL_TIMEZONE,
     CHAT_ID,
     DATABASE_PATH,
+    MAX_ARTICLES_PER_CYCLE,
     SCHEDULE_INTERVAL_MINUTES,
 )
 from database import Database
@@ -66,9 +67,17 @@ def main() -> None:
     def run_cycle() -> None:
         logger.info("Running fetch and publish cycle")
         seen_in_cycle = set()
+        published_count = 0
 
         try:
             for source in SOURCE_LIST:
+                if published_count >= MAX_ARTICLES_PER_CYCLE:
+                    logger.info(
+                        "Reached publish limit for cycle: %s",
+                        MAX_ARTICLES_PER_CYCLE,
+                    )
+                    break
+
                 source_name = source.get("name", source.get("url", "unknown source"))
                 source_url = source.get("url", "")
                 source_type = source.get("type", "rss")
@@ -109,7 +118,14 @@ def main() -> None:
 
                         if publisher.publish(message):
                             db.save_article(article_id, title=title)
+                            published_count += 1
                             logger.info("Published article: %s", title or article_id)
+                            if published_count >= MAX_ARTICLES_PER_CYCLE:
+                                logger.info(
+                                    "Reached publish limit for cycle: %s",
+                                    MAX_ARTICLES_PER_CYCLE,
+                                )
+                                break
                         else:
                             logger.error(
                                 "Publish failed, article was not marked as sent: %s",

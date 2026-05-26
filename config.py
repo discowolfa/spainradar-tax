@@ -12,6 +12,7 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "data/spainradar_tax.db")
 SCHEDULE_INTERVAL_MINUTES = int(os.getenv("SCHEDULE_INTERVAL_MINUTES", "10"))
 LOG_PATH = os.getenv("LOG_PATH", "logs/spainradar_tax.log")
 CHANNEL_TIMEZONE = os.getenv("CHANNEL_TIMEZONE", "Europe/Madrid")
+MAX_ARTICLES_PER_CYCLE = int(os.getenv("MAX_ARTICLES_PER_CYCLE", "1"))
 
 # Minimal configuration validation
 if not BOT_TOKEN or not CHAT_ID:

@@ -59,6 +59,7 @@ Copy `.env.example` to `.env` and fill in:
 - `SCHEDULE_INTERVAL_MINUTES` - fetch interval
 - `LOG_PATH` - bot log path
 - `CHANNEL_TIMEZONE` - timezone used in Telegram post timestamps, defaults to `Europe/Madrid`
+- `MAX_ARTICLES_PER_CYCLE` - max number of articles published during one fetch cycle, defaults to `1`
 
 If `OPENAI_API_KEY` is empty, the bot keeps running and publishes sanitized source text without AI translation.
 
